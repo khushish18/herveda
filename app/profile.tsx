@@ -1,28 +1,12 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { getUserProfile } from "@/services/profile";
+import { useAuth } from "@/context/auth";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [profile, setProfile] = useState<{
-    fullName: string;
-    age: string;
-    height: string;
-    weight: string;
-    lifeStage: string;
-    dietPreference: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      const savedProfile = await getUserProfile();
-      setProfile(savedProfile);
-    };
-
-    loadProfile();
-  }, []);
+  const { profile, signOut } = useAuth();
 
   return (
     <View style={styles.container}>
@@ -82,6 +66,13 @@ export default function ProfileScreen() {
           }
         >
           <Text style={styles.buttonText}>Edit Profile</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.button, styles.logoutButton]}
+          onPress={signOut}
+        >
+          <Text style={[styles.buttonText, styles.logoutButtonText]}>Log Out</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -167,5 +158,14 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "700",
+  },
+  logoutButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#c93b3b",
+    marginTop: 12,
+  },
+  logoutButtonText: {
+    color: "#c93b3b",
   },
 });

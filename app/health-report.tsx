@@ -2,12 +2,13 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { useAuth } from "@/context/auth";
 import AnalysisCard from "@/components/analysis-card";
 import { getMealHistory } from "@/services/meal-history";
-import { getUserProfile } from "@/services/profile";
 
 export default function HealthReportScreen() {
   const router = useRouter();
+  const { profile } = useAuth();
   const [mealCount, setMealCount] = useState(0);
   const [avgCalories, setAvgCalories] = useState(0);
   const [avgHealthScore, setAvgHealthScore] = useState(0);
@@ -19,7 +20,6 @@ export default function HealthReportScreen() {
   useEffect(() => {
     const loadReport = async () => {
       const history = await getMealHistory();
-      const profile = await getUserProfile();
 
       if (history.length > 0) {
         const totalCalories = history.reduce(
@@ -38,18 +38,23 @@ export default function HealthReportScreen() {
         );
       }
 
-      if (profile) {
-        const summaryParts = [
-          profile.fullName || "your profile",
-          profile.lifeStage || "wellness",
-          profile.dietPreference || "balanced diet",
-        ];
-        setProfileSummary(summaryParts.join(" • "));
-      }
     };
 
     loadReport();
   }, []);
+
+  useEffect(() => {
+    if (profile) {
+      const summaryParts = [
+        profile.fullName || "your profile",
+        profile.lifeStage || "wellness",
+        profile.dietPreference || "balanced diet",
+      ];
+      setProfileSummary(summaryParts.join(" • "));
+    } else {
+      setProfileSummary("No profile saved yet.");
+    }
+  }, [profile]);
 
   const summaryItems = useMemo(
     () => [

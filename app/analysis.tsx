@@ -9,11 +9,10 @@ import {
   View,
 } from "react-native";
 
+import { useAuth } from "@/context/auth";
 import AnalysisCard from "@/components/analysis-card";
-import {
-  analyzeMealImage,
-  GeminiAnalysisResult,
-} from "@/services/gemini-analysis";
+import { apiService, MealAnalysisResult } from "@/services/api";
+import * as FileSystem from "expo-file-system/legacy";
 import { saveMealAnalysisToHistory } from "@/services/meal-history";
 
 const getLifeStageRecommendations = (lifeStage?: string) => {
@@ -58,12 +57,13 @@ const getLifeStageRecommendations = (lifeStage?: string) => {
 
 export default function AnalysisScreen() {
   const router = useRouter();
+  const { profile } = useAuth();
   const params = useLocalSearchParams<{
     imageUri?: string;
     lifeStage?: string;
     fromHistory?: string;
   }>();
-  const [analysis, setAnalysis] = useState<GeminiAnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<MealAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,12 +79,20 @@ export default function AnalysisScreen() {
       try {
         setLoading(true);
         setError(null);
-        const result = await analyzeMealImage(imageUri);
+
+        // Read image file as base64 string
+        const base64 = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const mimeType = imageUri.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+
+        // Query the secure backend analyze endpoint
+        const result = await apiService.analyzeMeal(base64, mimeType);
         setAnalysis(result);
 
         await saveMealAnalysisToHistory({
           mealName: result.meal_name,
-          imageUri,
+          imageUri: result.image_url, // Save the secure temporary URL in history
           calories: result.estimated_calories,
           healthScore: result.health_score,
           aiInsights: result.ai_insights,
@@ -96,8 +104,8 @@ export default function AnalysisScreen() {
             : "Unable to analyze this meal. Please try another image.";
         setError(
           message.includes("API key")
-            ? "Gemini API key is not configured. Set EXPO_PUBLIC_GEMINI_API_KEY and try again."
-            : message,
+            ? "Backend Gemini API key is not configured. Ask your administrator to set GEMINI_API_KEY in the backend environment."
+            : message
         );
       } finally {
         setLoading(false);
@@ -107,7 +115,8 @@ export default function AnalysisScreen() {
     runAnalysis();
   }, [params.imageUri]);
 
-  const recommendations = getLifeStageRecommendations(params.lifeStage);
+  const resolvedLifeStage = params.lifeStage || profile?.lifeStage || "General Wellness";
+  const recommendations = getLifeStageRecommendations(resolvedLifeStage);
 
   const nutritionData = analysis
     ? [
@@ -195,7 +204,7 @@ export default function AnalysisScreen() {
 
             <AnalysisCard title="Women's Health Recommendation" icon="🌿">
               <Text style={styles.sectionText}>
-                Since the user selected PCOS:
+                Since your life stage is {resolvedLifeStage}:
               </Text>
               <View style={styles.list}>
                 {recommendations.map((recommendation) => (

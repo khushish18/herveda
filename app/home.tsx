@@ -5,17 +5,18 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import HomeActionPill from "@/components/home-action-pill";
 import HomeCard from "@/components/home-card";
 import { getMealHistory } from "@/services/meal-history";
-import { getUserProfile } from "@/services/profile";
+import { useAuth } from "@/context/auth";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { profile } = useAuth();
   const params = useLocalSearchParams<{
     lifeStage?: string;
     age?: string;
     dietPreference?: string;
     fullName?: string;
   }>();
-  const [userName, setUserName] = useState(params.fullName || "Khushi");
+  const [userName, setUserName] = useState(profile?.fullName || params.fullName || "Khushi");
   const [latestMeal, setLatestMeal] = useState("No meals scanned yet");
   const [latestRecommendation, setLatestRecommendation] = useState(
     "Scan a meal to see your first recommendation.",
@@ -24,7 +25,7 @@ export default function HomeScreen() {
   const handleOpenScanner = () => {
     router.push({
       pathname: "/scan-meal",
-      params: { lifeStage: params.lifeStage || "" },
+      params: { lifeStage: profile?.lifeStage || params.lifeStage || "" },
     });
   };
 
@@ -32,10 +33,10 @@ export default function HomeScreen() {
     router.push({
       pathname: "/ai-chat",
       params: {
-        lifeStage: params.lifeStage || "General Wellness",
-        age: params.age || "",
-        dietPreference: params.dietPreference || "",
-        fullName: params.fullName || "",
+        lifeStage: profile?.lifeStage || params.lifeStage || "General Wellness",
+        age: profile?.age || params.age || "",
+        dietPreference: profile?.dietPreference || params.dietPreference || "",
+        fullName: profile?.fullName || params.fullName || "",
       },
     });
   };
@@ -53,12 +54,13 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    const loadDashboardData = async () => {
-      const profile = await getUserProfile();
-      if (profile?.fullName) {
-        setUserName(profile.fullName);
-      }
+    if (profile?.fullName) {
+      setUserName(profile.fullName);
+    }
+  }, [profile]);
 
+  useEffect(() => {
+    const loadDashboardData = async () => {
       const history = await getMealHistory();
       if (history.length > 0) {
         const latest = history[0];

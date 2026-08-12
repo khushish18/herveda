@@ -6,5 +6,5 @@ import HerVedaSplashScreen from '@/components/herveda-splash';
 export default function HomeScreen() {
   const router = useRouter();
 
-  return <HerVedaSplashScreen onGetStarted={() => router.push('/profile-setup')} />;
+  return <HerVedaSplashScreen onGetStarted={() => router.push('/login')} />;
 }

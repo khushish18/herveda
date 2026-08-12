@@ -1,7 +1,7 @@
-import { saveUserProfile } from "@/services/profile";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 
-import { getUserProfile } from "@/services/profile";
+import { useAuth } from "@/context/auth";
+import { apiService } from "@/services/api";
 
 const lifeStageOptions = [
   "Pregnancy",
@@ -24,6 +25,8 @@ const dietOptions = ["Vegetarian", "Non Vegetarian", "Vegan"];
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
+  const { profile, refreshProfile } = useAuth();
+
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [height, setHeight] = useState("");
@@ -33,23 +36,18 @@ export default function ProfileSetupScreen() {
   const isEditing = params.mode === "edit";
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const profile = await getUserProfile();
-      if (profile) {
-        setFullName(profile.fullName || "");
-        setAge(profile.age || "");
-        setHeight(profile.height || "");
-        setWeight(profile.weight || "");
-        setSelectedStage(profile.lifeStage || "General Wellness");
-        setSelectedDiet(profile.dietPreference || "Vegetarian");
-      }
-    };
-
-    loadProfile();
-  }, []);
+    if (profile) {
+      setFullName(profile.fullName || "");
+      setAge(profile.age || "");
+      setHeight(profile.height || "");
+      setWeight(profile.weight || "");
+      setSelectedStage(profile.lifeStage || "General Wellness");
+      setSelectedDiet(profile.dietPreference || "Vegetarian");
+    }
+  }, [profile]);
 
   const handleContinue = async () => {
-    const profile = {
+    const profileData = {
       fullName: fullName.trim(),
       age: age.trim(),
       height: height.trim(),
@@ -58,17 +56,19 @@ export default function ProfileSetupScreen() {
       dietPreference: selectedDiet || "Vegetarian",
     };
 
-    await saveUserProfile(profile);
+    try {
+      await apiService.upsertProfile(profileData);
+      await refreshProfile();
 
-    router.replace({
-      pathname: "/home",
-      params: {
-        fullName: profile.fullName,
-        age: profile.age,
-        lifeStage: profile.lifeStage,
-        dietPreference: profile.dietPreference,
-      },
-    });
+      if (isEditing) {
+        router.back();
+      } else {
+        router.replace("/home");
+      }
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+      Alert.alert("Error", "Failed to save profile. Please check your network connection.");
+    }
   };
 
   return (
