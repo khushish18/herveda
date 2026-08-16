@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { supabase } from '../config/supabase';
 import { apiService, ProfileData } from '../services/api';
 
@@ -90,8 +91,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
+    // 3. Handle deep link URL redirect for email confirmation
+    const handleDeepLink = async (url: string) => {
+      console.log('[AuthProvider] Received Deep Link:', url);
+      try {
+        const parsed = Linking.parse(url.replace('#', '?'));
+        const { access_token, refresh_token } = parsed.queryParams || {};
+        const token = Array.isArray(access_token) ? access_token[0] : access_token;
+        const refresh = Array.isArray(refresh_token) ? refresh_token[0] : refresh_token;
+
+        if (token && refresh) {
+          console.log('[AuthProvider] Found tokens in deep link. Setting session...');
+          const { error } = await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: refresh,
+          });
+          if (error) {
+            console.error('[AuthProvider] Error setting session from deep link:', error.message);
+          }
+        }
+      } catch (err) {
+        console.error('[AuthProvider] Deep link parsing error:', err);
+      }
+    };
+
+    // Get initial URL if the app was launched by a link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for incoming URLs while the app is active
+    const linkingSubscription = Linking.addEventListener('url', (event) => {
+      if (event.url) {
+        handleDeepLink(event.url);
+      }
+    });
+
     return () => {
       subscription.unsubscribe();
+      linkingSubscription.remove();
     };
   }, []);
 

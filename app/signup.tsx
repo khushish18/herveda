@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { supabase } from '../config/supabase';
 
 export default function SignupScreen() {
@@ -42,10 +43,20 @@ export default function SignupScreen() {
     setError(null);
     setSuccessMsg(null);
 
+    const redirectUrl = Linking.createURL('login');
+    console.log('[Signup Diagnostic - handleSignup]:', {
+      supabaseUrlFromClient: (supabase as any).supabaseUrl,
+      supabaseAnonKeyLoadedFromClient: !!(supabase as any).supabaseKey,
+      redirectUrl,
+    });
+
     try {
       const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
       });
 
       if (authError) {
